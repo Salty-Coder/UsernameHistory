@@ -190,14 +190,6 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			let newFriendUsernames = {
 				friendCache: currentSavedData.friendCache,
 			};
-			
-	
-			/*if(!currentStoredData.friendCache){
-				return Data.save(`${config.info.name}_test`, 'savedData', newFriendUsernames)
-			}
-			if(Object.keys(currentStoredData.friendCache).length === 0){
-				return Data.save(`${config.info.name}_test`, 'savedData', newFriendUsernames)
-			}*/
 	
 			newFriendUsernames = newFriendUsernames.friendCache;
 	
@@ -215,7 +207,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			}
 			return Data.save(`${config.info.name}_test`, 'savedData', currentStoredData);
 			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {}});
-			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {  "660860332595609610": {"tags": ["thejnorie"]}}});
+			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {  "": {"tags": [""]}}});
 		};
 
 
