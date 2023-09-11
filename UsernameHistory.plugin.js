@@ -281,7 +281,6 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 
 		const update = () => {
 			compareAndUpdateCurrentSavedData();
-			//openHistoryWindow();
 		};
 
 
@@ -351,49 +350,6 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			onStop () {
 				//BDFDB.PatchUtils.forceAllUpdates(this);
 				subscribeTargets.forEach((e) => Dispatcher.unsubscribe(e, update));
-			}
-
-			getSettingsPanel (collapseStates = {}) {
-				let settingsPanel;
-				return settingsPanel = BDFDB.PluginUtils.createSettingsPanel(this, {
-					collapseStates: collapseStates,
-					children: _ => {
-						let settingsItems = [];
-						
-						settingsItems.push(BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SettingsPanelList, {
-							title: "Add Date in:",
-							children: Object.keys(this.defaults.places).map(key => BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SettingsSaveItem, {
-								type: "Switch",
-								plugin: this,
-								keys: ["places", key],
-								label: this.defaults.places[key].description,
-								value: this.settings.places[key]
-							}))
-						}));
-						
-						settingsItems.push(BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.FormComponents.FormDivider, {
-							className: BDFDB.disCN.marginbottom8
-						}));
-						
-						settingsItems.push(Object.keys(this.defaults.dates).map(key => BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.DateInput, Object.assign({}, this.settings.dates[key], {
-							label: this.defaults.dates[key].description,
-							onChange: valueObj => {
-								this.SettingsUpdated = true;
-								this.settings.dates[key] = valueObj;
-								BDFDB.DataUtils.save(this.settings.dates, this, "dates");
-							}
-						}))));
-						
-						return settingsItems.flat(10);
-					}
-				});
-			}
-
-			onSettingsClosed () {
-				if (this.SettingsUpdated) {
-					delete this.SettingsUpdated;
-					BDFDB.PatchUtils.forceAllUpdates(this);
-				}
 			}
 
 			processUserPopout (e) {
