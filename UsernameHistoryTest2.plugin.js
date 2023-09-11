@@ -133,6 +133,11 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 		var currentPopout, currentProfile;
 		const UsernameHistoryComponents = class UsernameHistory extends BdApi.React.Component {
 			render() {
+
+				//var currentStoredData = getSavedData() || {friendCache: {}};
+				var currentStoredData = Data.load(`${config.info.name}_test`, 'savedData') || {friendCache: {}};
+				if(!currentStoredData.friendCache[this.props.user.id]) return null; // If no data is saved for this user, ont display anything
+
 				let icon = BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
                     className: BDFDB.disCN._lastmessagedateicon,
 					nativeClass: false,
