@@ -35,6 +35,25 @@ const config = {
     ],
 };
 
+const { Data, UI, Utils } = window.BdApi;
+const {
+	DiscordModules, DOMTools, Modals, Logger, Utilities,
+} = window.ZLibrary;
+const {
+	React, Dispatcher, GuildStore, RelationshipStore, UserStore,
+} = DiscordModules;
+
+const subscribeTargets = [
+	'FRIEND_REQUEST_ACCEPTED',
+	'RELATIONSHIP_ADD',
+	'RELATIONSHIP_UPDATE',
+	'RELATIONSHIP_REMOVE',
+];
+let currentSavedData;
+let isUpdating = false;
+let isImporting = false;
+
+
 let NoZLibrary;
 if (!global.ZeresPluginLibrary) {
     const { BdApi } = window;
@@ -112,8 +131,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 	} : (([Plugin, BDFDB]) => {
 		var _this;
 		var currentPopout, currentProfile;
-		
-		const LastMessageDateComponents = class LastMessageDate extends BdApi.React.Component {
+		const UsernameHistoryComponents = class UsernameHistory extends BdApi.React.Component {
 			render() {
 				let icon = BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
                     className: BDFDB.disCN._lastmessagedateicon,
@@ -125,7 +143,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 						BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Heading, {
 							className: !this.props.isInPopout ? BDFDB.disCN.userprofileinfosectionheader : BDFDB.disCN.userpopoutsectiontitle,
 							variant: "eyebrow",
-							children: _this.labels.last_message
+							children: _this.labels.username_history
 						}),
 						BDFDB.ReactUtils.createElement("div", {
 							className: BDFDB.DOMUtils.formatClassName(BDFDB.disCN.membersince, !this.props.isInPopout && BDFDB.disCN.userprofileinfotext),
@@ -144,25 +162,10 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 		};
 		
 
-		const { Data, UI, Utils } = window.BdApi;
-		const {
-			DiscordModules, DOMTools, Modals, Logger, Utilities,
-		} = window.ZLibrary;
-		const {
-			React, Dispatcher, GuildStore, RelationshipStore, UserStore,
-		} = DiscordModules;
-
-		const subscribeTargets = [
-			'FRIEND_REQUEST_ACCEPTED',
-			'RELATIONSHIP_ADD',
-			'RELATIONSHIP_UPDATE',
-			'RELATIONSHIP_REMOVE',
-		];
-		let isUpdating = false;
-		let isImporting = false;
+		
 
 
-		const getSavedData = (currentUserId) => {
+		const getSavedData = () => {
 			const savedData = Data.load(`${config.info.name}`, 'savedData');
 			if (!savedData) return undefined;
 	
@@ -286,7 +289,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 
 
 
-		return class LastMessageDate extends Plugin {
+		return class UsernameHistory extends Plugin {
 			onLoad () {
 				_this = this;
 
@@ -294,9 +297,6 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 					places: {
 						userPopout:				{value: true, 			description: "User Popouts"},
 						userProfile:			{value: true, 			description: "User Profile Modal"}
-					},
-					dates: {
-						lastMessageDate:		{value: {}, 			description: "Username History"},
 					}
 				};
 			
@@ -321,25 +321,6 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			}
 			
 			onStart () {
-				/*BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.DispatchApiUtils, "dispatch", {after: e => {
-					if (BDFDB.ObjectUtils.is(e.methodArguments[0]) && e.methodArguments[0].type == "MESSAGE_CREATE" && e.methodArguments[0].message) {
-						let message = e.methodArguments[0].message;
-						let guildId = message.guild_id || message.channel_id;
-						if (guildId && loadedUsers[guildId] && loadedUsers[guildId][message.author.id]) loadedUsers[guildId][message.author.id] = message;
-					}
-					else if (BDFDB.ObjectUtils.is(e.methodArguments[0]) && e.methodArguments[0].type == "MESSAGE_DELETE" && e.methodArguments[0].id) {
-						let guildId = e.methodArguments[0].guildId || e.methodArguments[0].channelId;
-						if (guildId && loadedUsers[guildId]) {
-							let message = (Object.entries(loadedUsers[guildId]).find(n => n[1] && n[1].id == e.methodArguments[0].id) || [])[1];
-							if (message && loadedUsers[guildId][message.author.id]) delete loadedUsers[guildId][message.author.id];
-						}
-					}
-				}});
-
-				BDFDB.PatchUtils.forceAllUpdates(this);*/
-
-
-
 
 				var lastExecutionTimestamp = new Date().getTime().toString();
 
@@ -424,7 +405,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 				let user = e.instance.props.user || BDFDB.LibraryStores.UserStore.getUser(e.instance.props.userId);
 				if (!user || user.isNonUserBot()) return;
 				e.returnvalue = [
-					BDFDB.ReactUtils.createElement(LastMessageDateComponents, {
+					BDFDB.ReactUtils.createElement(UsernameHistoryComponents, {
 						isInPopout: true,
 						guildId: currentPopout.props.guildId || BDFDB.DiscordConstants.ME,
 						channelId: currentPopout.props.channelId,
@@ -454,16 +435,9 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			}
 
 			setLabelsByLanguage () {
-				switch (BDFDB.LanguageUtils.getLanguage().id) {
-					case "zh-TW":	// Chinese (Taiwan)
-						return {
-							last_message:						"e"
-						};
-					default:		// English
-						return {
-							last_message:						"Username History"
-						};
-				}
+				return {
+					username_history: "Username History"
+				};
 			}
 		};
 	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
