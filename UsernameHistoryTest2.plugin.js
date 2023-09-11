@@ -145,17 +145,19 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 							variant: "eyebrow",
 							children: _this.labels.username_history
 						}),
-						BDFDB.ReactUtils.createElement("div", {
-							className: BDFDB.DOMUtils.formatClassName(BDFDB.disCN.membersince, !this.props.isInPopout && BDFDB.disCN.userprofileinfotext),
-							children: [
+						currentStoredData.friendCache[this.props.user.id].tags.map(tag => (
+							BDFDB.ReactUtils.createElement("div", {
+							  className: BDFDB.DOMUtils.formatClassName(BDFDB.disCN.membersince, !this.props.isInPopout && BDFDB.disCN.userprofileinfotext),
+							  children: [
 								icon,
 								BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Text, {
-									className: this.props.isInPopout && BDFDB.disCN.userpopoutsectionbody,
-									variant: "text-sm/normal",
-									children: "yeah" // Body text
+								  className: this.props.isInPopout && BDFDB.disCN.userpopoutsectionbody,
+								  variant: "text-sm/normal",
+								  children: tag // Use the tag value as Body text
 								})
-							]
-						})
+							  ]
+							})
+						))
 					]
 				});
 			}
