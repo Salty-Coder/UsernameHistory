@@ -345,7 +345,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 					// Update the last execution timestamp
 					lastExecutionTimestamp =  currentTime.toString();
 					}
-				}, 60 * 1000); // Check every minute
+				}, 60 * 60 * 1000); // Check every hour
 				}
 			
 			onStop () {
