@@ -135,7 +135,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			render() {
 
 				//var currentStoredData = getSavedData() || {friendCache: {}};
-				var currentStoredData = Data.load(`${config.info.name}_test`, 'savedData') || {friendCache: {}};
+				var currentStoredData = Data.load(`${config.info.name}_db`, 'savedData') || {friendCache: {}};
 				if(!currentStoredData.friendCache[this.props.user.id]) return null; // If no data is saved for this user, ont display anything
 
 				let icon = BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
@@ -173,7 +173,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 
 
 		const getSavedData = () => {
-			const savedData = Data.load(`${config.info.name}`, 'savedData');
+			const savedData = Data.load(`${config.info.name}_db`, 'savedData');
 			if (!savedData) return undefined;
 	
 			const currentSavedDataInterpret = {
@@ -184,7 +184,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 		};
 
 		const setSavedData = () => {
-			var currentStoredData = Data.load(`${config.info.name}_test`, 'savedData') || {friendCache: {}};
+			var currentStoredData = Data.load(`${config.info.name}_db`, 'savedData') || {friendCache: {}};
 			//var currentStoredData = getSavedData(currentUserId) || {friendCache: {}};
 	
 			let newFriendUsernames = {
@@ -205,7 +205,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 					}
 				}
 			}
-			return Data.save(`${config.info.name}_test`, 'savedData', currentStoredData);
+			return Data.save(`${config.info.name}_db`, 'savedData', currentStoredData);
 			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {}});
 			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {  "": {"tags": [""]}}});
 		};
