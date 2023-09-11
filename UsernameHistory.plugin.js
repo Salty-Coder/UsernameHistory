@@ -1,5 +1,5 @@
 /**
- * @name UsernameHistoryTest2
+ * @name UsernameHistory
  * @author salty
  * @authorId 409250840571019264
  * @version 0.0.1
@@ -11,7 +11,7 @@
 
 const config = {
     info: {
-        name: 'UsernameHistoryTest2',
+        name: 'UsernameHistory',
         authors: [
             {
                 name: 'salty',
@@ -19,7 +19,7 @@ const config = {
                 github_username: 'Salty-Coder',
             },
         ],
-        version: '0.0.1',
+        version: '1.0.0',
         description: 'Keep track of who is who by seeing your friends\' username history.',
         github: 'https://github.com/Salty-Coder/UsernameHistory',
         github_raw: 'https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/UsernameHistory.plugin.js',
