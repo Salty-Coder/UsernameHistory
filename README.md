@@ -6,7 +6,7 @@ From the moment you install and enable the plugin, the usernames of your friends
 
 <b>Please note: you cannot see any usernames from before the plugin was installed!</b>
 
-![image](https://github.com/Salty-Coder/UsernameHistory/images/demo.png)
+![image](https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/images/demo.png)
 
 
 Usernames will be checked and saved every 10 hours. This means you will keep track of any username changes.   
