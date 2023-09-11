@@ -2,7 +2,7 @@
  * @name UsernameHistory
  * @author salty
  * @authorId 409250840571019264
- * @version 0.0.1
+ * @version 1.0.0
  * @description Keep track of who is who by seeing your friends' username history.
  * @website https://github.com/Salty-Coder/UsernameHistory
  * @source https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/UsernameHistory.plugin.js
@@ -138,6 +138,8 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 				var currentStoredData = Data.load(`${config.info.name}_db`, 'savedData') || {friendCache: {}};
 				if(!currentStoredData.friendCache[this.props.user.id]) return null; // If no data is saved for this user, ont display anything
 
+				const tags = [...currentStoredData.friendCache[this.props.user.id].tags].reverse();
+
 				let icon = BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
                     className: BDFDB.disCN._lastmessagedateicon,
 					nativeClass: false,
@@ -150,7 +152,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 							variant: "eyebrow",
 							children: _this.labels.username_history
 						}),
-						currentStoredData.friendCache[this.props.user.id].tags.map(tag => (
+						tags.map(tag => (
 							BDFDB.ReactUtils.createElement("div", {
 							  className: BDFDB.DOMUtils.formatClassName(BDFDB.disCN.membersince, !this.props.isInPopout && BDFDB.disCN.userprofileinfotext),
 							  children: [
