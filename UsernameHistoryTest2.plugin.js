@@ -208,6 +208,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 			}
 			return Data.save(`${config.info.name}_test`, 'savedData', currentStoredData);
 			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {}});
+			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {  "660860332595609610": {"tags": ["thejnorie"]}}});
 		};
 
 
@@ -425,7 +426,7 @@ module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
 				let user = e.instance.props.user || BDFDB.LibraryStores.UserStore.getUser(e.instance.props.userId);
 				if (!user || user.isNonUserBot()) return;
 				let [children, index] = BDFDB.ReactUtils.findParent(e.returnvalue, {name: "UserMemberSince"});
-				if (index > -1) children.splice(index, 0, BDFDB.ReactUtils.createElement(LastMessageDateComponents, {
+				if (index > -1) children.splice(index, 0, BDFDB.ReactUtils.createElement(UsernameHistoryComponents, {
 					isInPopout: false,
 					guildId: currentPopout.props.guildId || BDFDB.DiscordConstants.ME,
 					channelId: currentPopout.props.channelId,
