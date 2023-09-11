@@ -4,6 +4,7 @@
  * @authorId 409250840571019264
  * @version 1.0.0
  * @description Keep track of who is who by seeing your friends' username history.
+ * @donate https://github.com/sponsors/Salty-Coder
  * @website https://github.com/Salty-Coder/UsernameHistory
  * @source https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/UsernameHistory.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/UsernameHistory.plugin.js
