@@ -11,3 +11,8 @@ From the moment you install and enable the plugin, the usernames of your friends
 
 Usernames will be checked and saved every 10 hours. This means you will keep track of any username changes.   
 Usernames will also be checked when adding or removing a friend.
+
+<br><br>
+
+
+This plugin uses snippets of code from other sources such as RemovedConnectionAlerts and LastMessageDate
