@@ -2,7 +2,7 @@
  * @name UsernameHistory
  * @author salty
  * @authorId 409250840571019264
- * @version 1.0.0
+ * @version 1.1.0
  * @description Keep track of who is who by seeing your friends' username history.
  * @donate https://github.com/sponsors/Salty-Coder
  * @website https://github.com/Salty-Coder/UsernameHistory
@@ -20,29 +20,29 @@ const config = {
                 github_username: 'Salty-Coder',
             },
         ],
-        version: '1.0.0',
+        version: '1.1.0',
         description: 'Keep track of who is who by seeing your friends\' username history.',
         github: 'https://github.com/Salty-Coder/UsernameHistory',
         github_raw: 'https://raw.githubusercontent.com/Salty-Coder/UsernameHistory/main/UsernameHistory.plugin.js',
     },
     changelog: [
-        {
-            title: '1.0.0',
-            type: 'added',
+		{
+            title: '1.1.0',
+            type: 'progress',
             items: [
-                'Initial Release',
+                'Fixed and enhanced.',
             ],
         }
     ],
 };
 
-const { Data, UI, Utils } = window.BdApi;
-const {
-	DiscordModules, DOMTools, Modals, Logger, Utilities,
-} = window.ZLibrary;
-const {
-	React, Dispatcher, GuildStore, RelationshipStore, UserStore,
-} = DiscordModules;
+const { BdApi } = window;
+
+const { Data, UI, Utils, DOM } = BdApi;
+
+const {Webpack} = BdApi;
+const UserStore = Webpack.getStore("UserStore");
+const RelationshipStore = Webpack.getStore("RelationshipStore");
 
 const subscribeTargets = [
 	'FRIEND_REQUEST_ACCEPTED',
@@ -50,354 +50,340 @@ const subscribeTargets = [
 	'RELATIONSHIP_UPDATE',
 	'RELATIONSHIP_REMOVE',
 ];
-let currentSavedData;
+
+let currentCachedData;  // Cached while running plugin
 let isUpdating = false;
 let isImporting = false;
 
+const [ abort, getSignal ] = (function () {
+	let controller = new AbortController();
 
-let NoZLibrary;
-if (!global.ZeresPluginLibrary) {
-    const { BdApi } = window;
-    NoZLibrary = () => ({
-        getName() { return config.info.name; },
-        getAuthor() { return config.info.authors.map((a) => a.name).join(', '); },
-        getDescription() { return config.info.description; },
-        getVersion() { return config.info.version; },
-        load() {
-            BdApi.UI.showConfirmationModal(
-                'Library Missing',
-                `The library plugin needed for ${config.info.name} is missing. Please click Download Now to install it.`,
-                {
-                    confirmText: 'Download Now',
-                    cancelText: 'Cancel',
-                    onConfirm: () => {
-                        require('request').get('https://rauenzi.github.io/BDPluginLibrary/release/0PluginLibrary.plugin.js', async (error, response, body) => {
-                            if (error) return require('electron').shell.openExternal('https://betterdiscord.app/Download?id=9');
-                            await new Promise((r) => require('fs').writeFile(require('path').join(BdApi.Plugins.folder, '0PluginLibrary.plugin.js'), body, r));
-                        });
-                    },
+	function abort(reason) {
+	  controller.abort(reason);
+	  controller = new AbortController();
+	}
+
+	return [abort, () => controller.signal];
+  })();
+
+// Returns the data currently stored in the db file
+const getStoredData = () => { 
+	const storedData = Data.load(`${config.info.name}_db`, 'savedData');
+	if (!storedData) return undefined;
+	return storedData;
+};
+
+
+const getFriendsList = () => {
+	const relationships = RelationshipStore.getFriendIDs();
+	const friendsArr = {};
+
+	relationships.forEach((relationship) => {
+		const user = UserStore.getUser(relationship.toString());
+		if (user) {
+			const filteredUser = {
+				username: user.username,
+			};
+			friendsArr[user.id] = filteredUser;
+		}
+	});
+
+	return { friendsArr };
+};
+
+// Sets cached data to currently friend list
+const populateEmptyCurrentSavedData = () => {
+	const friendsList = getFriendsList();
+	currentCachedData.friendCache = friendsList.friendsArr;
+	console.log(`UsernameHistory: Caching ${Object.keys(friendsList.friendsArr).length} friends.`);
+};
+
+const initializeCurrentCachedData = () => {  // Ran first
+	const storedDataInFile = getStoredData();
+
+	if (!storedDataInFile) {   // If no data is already stored in json file:
+		const emptyCachedData = {friendCache: []};
+		currentCachedData = emptyCachedData; // Current memory saved data = []
+		populateEmptyCurrentSavedData(); // Populate the empty table
+	} else {            // If saved data is present in json file:
+		currentCachedData = storedDataInFile;  // Current memory data = the current data from json file
+	}
+	compareAndUpdateCurrentCachedData()
+};
+
+const compareAndUpdateCurrentCachedData = () => {  // Ran after initializeCurrentCachedData and looped
+	if (isUpdating === true || isImporting === true) return null;
+    isUpdating = true;
+	try {
+		
+		let currentStoredData = getStoredData() || { friendCache: {} }; // Load stored data
+        let currentFriendUsernames = getFriendsList().friendsArr; // Get current friend data
+
+		for (let userId in currentFriendUsernames) {
+            let currentUsername = currentFriendUsernames[userId].username;
+
+            if (!currentStoredData.friendCache.hasOwnProperty(userId)) {
+                // If the user is not in the database at all, add them
+                currentStoredData.friendCache[userId] = { "usernames": [currentUsername] };
+            } else {
+                // If the user exists, check if the username is new
+                if (!currentStoredData.friendCache[userId].usernames.includes(currentUsername)) {
+                    currentStoredData.friendCache[userId].usernames.push(currentUsername);
+                }
+            }
+        }
+		currentCachedData = currentStoredData; // Update memory cache
+        Data.save(`${config.info.name}_db`, 'savedData', currentStoredData); // Save to db file
+
+
+
+	} catch (e) {
+		console.error("Error updating friend username data:", e);
+		throw e;
+	} finally {
+		isUpdating = false;
+	}
+
+	return;
+};
+
+
+
+
+
+let Text = BdApi.Webpack.getBySource("data-text-variant", "=\"div\",selectable:", { defaultExport: false });
+if (!Text.render) Text = Object.values(Text)[0];
+
+
+const {intl} = BdApi.Webpack.getMangled(".IntlManager(", {
+    intl: m => m?.currentLocale
+});
+
+function getMessage() {
+	switch (intl.currentLocale) {
+    	default: return "Username History";
+	}
+}
+
+
+// Custom Section Component
+class UsernameHistorySection extends BdApi.React.Component {
+  constructor(props) {
+	super(props);
+
+  }
+
+  state = { hasError: false };
+
+  UNHistory = null
+
+  render() {
+    if (this.state.hasError) return BdApi.React.createElement("div", {}, "React Error");
+	const { userId, currentName} = this.props;
+	if (!currentCachedData.friendCache || !currentCachedData.friendCache[userId]) return null;
+
+	const userData = currentCachedData.friendCache[userId];
+
+	if(userData.usernames.includes(currentName)){
+		const index = userData.usernames.indexOf(currentName);
+		if (index > -1) { // only splice array when item is found
+			userData.usernames.splice(index, 1); // 2nd parameter means remove one item only
+		}
+	}
+
+	return BdApi.React.createElement(Section, {
+		heading: getMessage(),
+		headingColor: this.props.sidePanel ? "header-primary" : undefined,
+		children: [
+			userData.usernames.slice().reverse().map((username, index) => 
+				BdApi.React.createElement("div", { key: index, style: { display: "flex", alignItems: "center" } },
+					BdApi.React.createElement("svg", { 
+						width: 20, height: 20, viewBox: "0 0 24 24", style: { marginRight: "5px" } 
+					}, 
+						BdApi.React.createElement("path", { fill: "white", d: "M8.707 19.707 18 10.414 13.586 6l-9.293 9.293a1.003 1.003 0 0 0-.263.464L3 21l5.242-1.03c.176-.044.337-.135.465-.263zM21 7.414a2 2 0 0 0 0-2.828L19.414 3a2 2 0 0 0-2.828 0L15 4.586 19.414 9 21 7.414z" })
+					),
+					BdApi.React.createElement(Text, { variant: "text-sm/normal" }, username)
+				)
+			)
+		]
+	})
+  }
+}
+
+
+
+
+
+
+
+
+
+
+let UserModalContent;
+async function patchUserModal(signal) {
+    if (!UserModalContent) {
+		UserModalContent = await BdApi.Webpack.waitForModule(
+			BdApi.Webpack.Filters.byStrings("3fe7U1", "trackUserProfileAction"),
+			{ defaultExport: false }
+		);
+        
+		if (!("default" in UserModalContent)) {
+            Object.defineProperty(UserModalContent, "default", {
+                get() {
+                    return UserModalContent.Z || UserModalContent.ZP;
                 },
+                set(value) {
+                    if ("Z" in UserModalContent) UserModalContent.Z = value;
+                    if ("ZP" in UserModalContent) UserModalContent.ZP = value;
+                }
+            });
+        }
+    }
+
+    if (signal.aborted) return;
+
+    BdApi.Patcher.after("UsernameHistory", UserModalContent, "default", (instance, [props], res) => {
+        if (!BdApi.React.isValidElement(res)) return;
+        const children = res.props.children;
+
+		const index = children.findIndex(
+			(value) =>
+			  BdApi.React.isValidElement(value) &&
+			  "heading" in value.props &&
+			  BdApi.React.isValidElement(value.props.children) &&
+			  "tooltipDelay" in value.props.children.props
+		  );
+
+        if (~index) {
+			Section = children[index].type;
+
+            children.splice(
+                index + 1, 0,
+                BdApi.React.createElement(UsernameHistorySection, {
+					userId: props.user.id,
+					currentName: props.user.username
+				})
             );
-        },
-        start() {},
-        stop() {},
+        }
     });
 }
 
 
 
-module.exports = (!global.ZeresPluginLibrary) ? NoZLibrary : (_ => {
-	const changeLog = {
-		
-	};
+let UserSidePanel;
+async function patchSidePanel(signal) {
+    if (!UserSidePanel) {
+    	UserSidePanel = await BdApi.Webpack.waitForModule(BdApi.Webpack.Filters.byStrings("61W33d", "UserProfilePanelBody"), { defaultExport: false });
 
-	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		constructor (meta) {for (let key in meta) this[key] = meta[key];}
-		getName () {return this.name;}
-		getAuthor () {return this.author;}
-		getVersion () {return this.version;}
-		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
-		
-		downloadLibrary () {
-			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
-				if (!e && b && r.statusCode == 200) require("fs").writeFile(require("path").join(BdApi.Plugins.folder, "0BDFDB.plugin.js"), b, _ => BdApi.showToast("Finished downloading BDFDB Library", {type: "success"}));
-				else BdApi.alert("Error", "Could not download BDFDB Library Plugin. Try again later or download it manually from GitHub: https://mwittrien.github.io/downloader/?library");
-			});
+      	if (!("default" in UserSidePanel)) {
+        	Object.defineProperty(UserSidePanel, "default", {
+          		get() {
+            		return UserSidePanel.Z || UserSidePanel.ZP;
+          		},
+          		set(value) {
+            		if ("Z" in UserSidePanel) UserSidePanel.Z = value;
+            		if ("ZP" in UserSidePanel) UserSidePanel.ZP = value;
+          		}
+        	});
+      	};
+    }
+
+    if (signal.aborted) return;
+
+    BdApi.Patcher.after("UsernameHistory", UserSidePanel, "default", (instance, [ props, abc ], res) => {
+      if (!BdApi.React.isValidElement(res)) return;
+
+      const background = res.props.children.find((value) => String(value?.props?.className).includes("overlay_"));
+      if (!background) return;
+      
+      const index = background.props.children.findIndex((value) => BdApi.React.isValidElement(value) && "heading" in value.props);
+
+      if (~index) {        
+        Section = background.props.children[index].type;
+        
+        background.props.children.push(
+          BdApi.React.createElement(UsernameHistorySection, {
+            userId: props.user.id,
+			currentName: props.user.username,
+            sidePanel: true
+          })
+        );
+      }
+    });
+  }
+
+
+
+
+
+
+
+
+
+
+module.exports = class UsernameHistory {
+
+	constructor(meta) {
+		this.meta = meta;
+		this.config = config;
+	}
+
+	getName() { return this.config.info.name; }
+    getAuthor() { return this.config.info.authors.map((a) => a.name).join(', '); }
+    getVersion() { return this.config.info.version; }
+    getDescription() { return this.config.info.description; }
+
+
+	start () {
+
+		const lastVersion = Data.load(config.info.name, 'lastVersion');
+        if (lastVersion !== this.meta.version) {
+            BdApi.UI.showChangelogModal({
+                title: this.meta.name,
+                subtitle: this.meta.version,
+                changes: config.changelog
+            });
+            BdApi.Data.save(config.info.name, 'lastVersion', this.meta.version);
 		}
-		
-		load () {
-			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
-			if (!window.BDFDB_Global.downloadModal) {
-				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
-					confirmText: "Download Now",
-					cancelText: "Cancel",
-					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
-					onConfirm: _ => {
-						delete window.BDFDB_Global.downloadModal;
-						this.downloadLibrary();
-					}
-				});
+
+
+		const signal = getSignal();
+		patchUserModal(signal);
+		patchSidePanel(signal)
+
+		BdApi.Patcher.before("UsernameHistory", BdApi.findModuleByProps("dispatch"), "dispatch", (thisObject, [event]) => {
+			if (subscribeTargets.includes(event.type)) {
+				update(event);
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
-		}
-		start () {this.load();}
-		stop () {}
-		getSettingsPanel () {
-			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
-			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
-			return template.content.firstElementChild;
-		}
-	} : (([Plugin, BDFDB]) => {
-		var _this;
-		var currentPopout, currentProfile;
-		const UsernameHistoryComponents = class UsernameHistory extends BdApi.React.Component {
-			render() {
+		});
 
-				//var currentStoredData = getSavedData() || {friendCache: {}};
-				var currentStoredData = Data.load(`${config.info.name}_db`, 'savedData') || {friendCache: {}};
-				if(!currentStoredData.friendCache[this.props.user.id]) return null; // If no data is saved for this user, ont display anything
+		initializeCurrentCachedData();
 
-				const tags = [...currentStoredData.friendCache[this.props.user.id].tags].reverse();
+		var lastExecutionTimestamp = new Date().getTime().toString();
 
-				let icon = BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
-                    className: BDFDB.disCN._lastmessagedateicon,
-					nativeClass: false,
-					name: BDFDB.LibraryComponents.SvgIcon.Names.PENCIL
-				});
-				return BDFDB.ReactUtils.createElement(this.props.isInPopout ? BDFDB.LibraryComponents.UserPopoutSection : BDFDB.ReactUtils.Fragment, {
-					children: [
-						BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Heading, {
-							className: !this.props.isInPopout ? BDFDB.disCN.userprofileinfosectionheader : BDFDB.disCN.userpopoutsectiontitle,
-							variant: "eyebrow",
-							children: _this.labels.username_history
-						}),
-						tags.map(tag => (
-							BDFDB.ReactUtils.createElement("div", {
-							  className: BDFDB.DOMUtils.formatClassName(BDFDB.disCN.membersince, !this.props.isInPopout && BDFDB.disCN.userprofileinfotext),
-							  children: [
-								icon,
-								BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Text, {
-								  className: this.props.isInPopout && BDFDB.disCN.userpopoutsectionbody,
-								  variant: "text-sm/normal",
-								  children: tag // Use the tag value as Body text
-								})
-							  ]
-							})
-						))
-					]
-				});
-			}
-		};
-		
-
-		
-
-
-		const getSavedData = () => {
-			const savedData = Data.load(`${config.info.name}_db`, 'savedData');
-			if (!savedData) return undefined;
-	
-			const currentSavedDataInterpret = {
-				friendCache: savedData.friendCache,
-			};
-	
-			return currentSavedDataInterpret;
-		};
-
-		const setSavedData = () => {
-			var currentStoredData = Data.load(`${config.info.name}_db`, 'savedData') || {friendCache: {}};
-			//var currentStoredData = getSavedData(currentUserId) || {friendCache: {}};
-	
-			let newFriendUsernames = {
-				friendCache: currentSavedData.friendCache,
-			};
-	
-			newFriendUsernames = newFriendUsernames.friendCache;
-	
-	
-			for(var userId in newFriendUsernames){
-				var currentTag = newFriendUsernames[userId].tag
-				if(!currentStoredData.friendCache.hasOwnProperty(userId)){
-					currentStoredData.friendCache[userId] = {"tags": [currentTag]}
-				}else{
-					if(!currentStoredData.friendCache[userId]){ currentStoredData.friendCache[userId].tags.push(currentTag)
-					}else if(!currentStoredData.friendCache[userId].tags.includes(currentTag)){
-						currentStoredData.friendCache[userId].tags.push(currentTag)
-					}
-				}
-			}
-			return Data.save(`${config.info.name}_db`, 'savedData', currentStoredData);
-			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {}});
-			//return Data.save(`${config.info.name}_test`, 'savedData', {friendCache: {  "": {"tags": [""]}}});
-		};
-
-
-		const getFriendsList = () => {
-			const relationships = RelationshipStore.getFriendIDs();
-			const friendsArr = {};
-			const friendsSet = new Set();
-	
-			relationships.forEach((relationship) => {
-				const user = UserStore.getUser(relationship.toString());
-				if (user) {
-					const filteredUser = {
-						//id: user.id,
-						tag: (user.discriminator != 0) ? `${user.username}#${user.discriminator}` : user.username,
-					};
-					friendsArr[user.id] = filteredUser;
-				}
-			});
-	
-			return { friendsArr, friendsSet };
-		};
-
-
-
-
-		const populateEmptyCurrentSavedData = () => {
-			const friendsList = getFriendsList();
-			currentSavedData.friendCache = friendsList.friendsArr;
-	
-			// eslint-disable-next-line max-len
-			Logger.info(config.info.name, `Caching ${friendsList.friendsSet.size} friends`);
-		};
-	
-		const initializeCurrentSavedData = () => {
-			const savedDataInFile = getSavedData();
-			const savedData = {
-				friendCache: [],
-			};
-	
-			if (!savedDataInFile) {   // If no data is already stored in json:
-				currentSavedData = savedData; // Current saved data = []
-				populateEmptyCurrentSavedData(); // If no saved data, create new data
-			} else {            // If saved data is present in json file:
-				currentSavedData = savedDataInFile;  // Current saved data = the current data from json file
-			}
-		};
-	
-		const compareAndUpdateCurrentSavedData = () => {
-			if (isUpdating === true) return null;
-			if (isImporting === true) return null;
-			isUpdating = true;
-			try {
-				const friends = getFriendsList();
-	
-				currentSavedData.friendCache = friends.friendsArr;
-				setSavedData();
-	
-			} catch (e) {
-				Logger.stacktrace(config.info.name, 'Exception occurred while updating cache', e);
-				throw e;
-			} finally {
-				isUpdating = false;
-			}
-	
-			return;
-		};
-
-
-
-
-
-		const update = () => {
-			compareAndUpdateCurrentSavedData();
-		};
-
-
-
-
-
-
-		return class UsernameHistory extends Plugin {
-			onLoad () {
-				_this = this;
-
-				this.defaults = {
-					places: {
-						userPopout:				{value: true, 			description: "User Popouts"},
-						userProfile:			{value: true, 			description: "User Profile Modal"}
-					}
-				};
-			
-				this.modulePatches = {
-					before: [
-						"UserPopout",
-						"UserProfile"
-					],
-					after: [
-						"UserMemberSinceSection",
-						"UserProfileBody"
-					]
-				};
+		const tenHoursInMilliseconds = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
+		// Loop
+		setInterval(() => {
+			const currentTime = new Date().getTime();
+			const timeDifference = currentTime - parseInt(lastExecutionTimestamp, 10);
 				
-				this.css = `
-					${BDFDB.dotCN._lastmessagedateicon} {
-						width: 16px;
-						height: 16px;
-						color: var(--interactive-normal);
-					}
-				`;
+			if (timeDifference >= tenHoursInMilliseconds) {
+				compareAndUpdateCurrentCachedData();
+				// Update the last execution timestamp
+				lastExecutionTimestamp =  currentTime.toString();
 			}
+			}, 60 * 60 * 1000); // Loop every hour - incase of pc sleep etc causing missed caches
+
+
+
+	}
+
+
 			
-			onStart () {
 
-				var lastExecutionTimestamp = new Date().getTime().toString();
+	stop () {
+		abort()
+		BdApi.Patcher.unpatchAll("UsernameHistory");
+	}
 
-				const tenHoursInMilliseconds = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
-
-				initializeCurrentSavedData();
-
-
-				subscribeTargets.forEach((e) => Dispatcher.subscribe(e, update));
-				update();
-
-
-				// Loop
-				setInterval(() => {
-					const currentTime = new Date().getTime();
-					const timeDifference = currentTime - parseInt(lastExecutionTimestamp, 10);
-				
-					if (timeDifference >= tenHoursInMilliseconds) {
-					// Execute the function
-					update();
-				
-					// Update the last execution timestamp
-					lastExecutionTimestamp =  currentTime.toString();
-					}
-				}, 60 * 60 * 1000); // Check every hour
-				}
-			
-			onStop () {
-				//BDFDB.PatchUtils.forceAllUpdates(this);
-				subscribeTargets.forEach((e) => Dispatcher.unsubscribe(e, update));
-			}
-
-			processUserPopout (e) {
-				currentPopout = e.instance;
-			}
-
-			processUserMemberSinceSection (e) {
-				if (!currentPopout) return;
-				let user = e.instance.props.user || BDFDB.LibraryStores.UserStore.getUser(e.instance.props.userId);
-				if (!user || user.isNonUserBot()) return;
-				e.returnvalue = [
-					BDFDB.ReactUtils.createElement(UsernameHistoryComponents, {
-						isInPopout: true,
-						guildId: currentPopout.props.guildId || BDFDB.DiscordConstants.ME,
-						channelId: currentPopout.props.channelId,
-						isGuild: !!currentPopout.props.guildId,
-						user: user
-					}, true),
-					e.returnvalue
-				];
-			}
-
-			processUserProfile (e) {
-				currentProfile = e.instance;
-			}
-
-			processUserProfileBody (e) {
-				if (!currentProfile) return;
-				let user = e.instance.props.user || BDFDB.LibraryStores.UserStore.getUser(e.instance.props.userId);
-				if (!user || user.isNonUserBot()) return;
-				let [children, index] = BDFDB.ReactUtils.findParent(e.returnvalue, {name: "UserMemberSince"});
-				if (index > -1) children.splice(index, 0, BDFDB.ReactUtils.createElement(UsernameHistoryComponents, {
-					isInPopout: false,
-					guildId: currentPopout.props.guildId || BDFDB.DiscordConstants.ME,
-					channelId: currentPopout.props.channelId,
-					isGuild: !!currentPopout.props.guildId,
-					user: user
-				}, true));
-			}
-
-			setLabelsByLanguage () {
-				return {
-					username_history: "Username History"
-				};
-			}
-		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
-})();
+}
